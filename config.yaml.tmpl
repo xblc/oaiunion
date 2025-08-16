@@ -1,0 +1,37 @@
+# config.yaml
+
+# 服務監聽的本地地址和端口
+server:
+  host: "127.0.0.1"
+  port: 8080
+  # 全局 API Key (可選)，如果設置，所有對此服務的請求都需要帶上此 Key
+  # api_key: "sk-your-local-secret-key"
+
+# 後端 API 端點列表
+endpoints:
+  - name: "provider-a" # 端點的唯一標識符，用於日誌和模型標記
+    base_url: "1"
+    api_key: "sk-vffdsfsdfdsfdsds"
+    # 可選：定義此端點的權重，用於加權輪詢
+    weight: 10
+
+  - name: "provider-b"
+    base_url: "2"
+    api_key: "sk-1tfdsfdsOzUFfdsw10"
+    weight: 5
+
+# 模型路由與合併策略
+routing:
+  # 'merge': 合併所有端點的同名模型，進行輪詢。
+  # 'prefix': 為每個模型加上端點名稱前綴，例如 'provider-a/gpt-4'。
+  mode: "merge" # 預設模式
+
+  # 手動重寫和合併規則 (僅在 mode: 'merge' 下生效)
+  # 這對於將不同提供商的相似模型視為同一個模型進行輪詢非常有用
+  model_overrides:
+    "claude-3-opus":
+      - "provider-a/claude-3-opus-20240229"
+      - "provider-b/claude-v3-opus"
+    "gpt-4-turbo":
+      - "provider-a/gpt-4-turbo-preview"
+      - "provider-c-custom/gpt-4-1106-preview"
