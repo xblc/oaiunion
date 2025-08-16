@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"encoding/json"
 	"go-oai-gateway/internal/config"
 	"net/http"
 	"strings"
@@ -69,15 +70,48 @@ func NewModelRegistry(cfg *config.Config) (*ModelRegistry, error) {
 }
 
 // fetchAndRegisterModels 從單個端點獲取模型列表並進行註冊
-// 注意：這是一個模擬實現，用於開發和測試
 func (r *ModelRegistry) fetchAndRegisterModels(endpoint config.EndpointConfig, mode string) {
-	// --- 模擬 API 請求 ---
-	// 在真實場景中，這裡會發出 HTTP GET 請求到 endpoint.BaseURL + "/v1/models"
-	// 並解析回應。為了測試，我們返回一個基於端點名稱的假模型列表。
-	mockModels := getMockModels(endpoint.Name)
-	// --- 模擬結束 ---
-
-	for _, model := range mockModels.Data {
+	// 構建完整的API URL
+	apiURL := endpoint.BaseURL + "/v1/models"
+	
+	// 創建HTTP請求
+	req, err := http.NewRequest("GET", apiURL, nil)
+	if err != nil {
+		// 記錄錯誤但繼續處理其他端點
+		return
+	}
+	
+	// 設置API Key認證頭
+	if endpoint.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+endpoint.APIKey)
+	}
+	
+	// 設置Content-Type
+	req.Header.Set("Content-Type", "application/json")
+	
+	// 發送HTTP請求
+	resp, err := r.client.Do(req)
+	if err != nil {
+		// 記錄錯誤但繼續處理其他端點
+		return
+	}
+	defer resp.Body.Close()
+	
+	// 檢查HTTP狀態碼
+	if resp.StatusCode != http.StatusOK {
+		// 記錄錯誤但繼續處理其他端點
+		return
+	}
+	
+	// 解析JSON響應
+	var modelList ModelList
+	if err := json.NewDecoder(resp.Body).Decode(&modelList); err != nil {
+		// 記錄錯誤但繼續處理其他端點
+		return
+	}
+	
+	// 註冊所有發現的模型
+	for _, model := range modelList.Data {
 		modelID := model.ID
 		if mode == "prefix" {
 			modelID = endpoint.Name + "/" + model.ID
@@ -144,31 +178,3 @@ func (r *ModelRegistry) applyModelOverrides(overrides map[string][]string) {
 	}
 }
 
-// getMockModels 是一個輔助函式，返回用於測試的模擬模型列表
-func getMockModels(providerName string) ModelList {
-	switch providerName {
-	case "provider-a":
-		return ModelList{
-			Data: []Model{
-				{ID: "gpt-4-turbo-preview"},
-				{ID: "claude-3-opus-20240229"},
-			},
-		}
-	case "provider-b":
-		return ModelList{
-			Data: []Model{
-				{ID: "gpt-4"},
-				{ID: "claude-v3-opus"},
-			},
-		}
-	case "provider-c-custom":
-		return ModelList{
-			Data: []Model{
-				{ID: "gpt-4-1106-preview"},
-				{ID: "dall-e-3"},
-			},
-		}
-	default:
-		return ModelList{Data: []Model{}}
-	}
-}
